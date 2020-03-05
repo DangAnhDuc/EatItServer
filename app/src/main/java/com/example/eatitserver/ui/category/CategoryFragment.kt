@@ -30,6 +30,7 @@ import com.example.eatitserver.callback.IMyButtonCallback
 import com.example.eatitserver.common.Common
 import com.example.eatitserver.common.MySwipeHelper
 import com.example.eatitserver.eventbus.MenuItemback
+import com.example.eatitserver.eventbus.ToastEvent
 import com.example.eatitserver.model.CategoryModel
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.storage.FirebaseStorage
@@ -184,8 +185,7 @@ class CategoryFragment : Fragment() {
             }
             .addOnSuccessListener { task->
                 categoryViewModel!!.loadCategory()
-                Toast.makeText(context, "Upload Success",Toast.LENGTH_SHORT).show()
-            }
+             }
 
     }
 
