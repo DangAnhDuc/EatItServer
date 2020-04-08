@@ -11,7 +11,10 @@
     <string name="menu_category">Category</string>
     <string name="menu_foodlist">Food List</string>
     <string name="menu_slideshow">Slideshow</string>
+    <string name="menu_order">Order</string>
+
 
     <string name="home_second">Home Second</string>
     <string name="menu_sign_out">Sign Out</string>
+    <string name="action_filter">Filter</string>
 </resources>

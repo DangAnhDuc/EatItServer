@@ -4,24 +4,25 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
+import android.widget.TextView
 import android.widget.Toast
-import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.google.android.material.snackbar.Snackbar
-import com.google.android.material.navigation.NavigationView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
+import androidx.drawerlayout.widget.DrawerLayout
+import androidx.navigation.NavController
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
-import androidx.drawerlayout.widget.DrawerLayout
-import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
-import androidx.navigation.NavController
 import com.example.eatitserver.common.Common
 import com.example.eatitserver.eventbus.CategoryClick
 import com.example.eatitserver.eventbus.ChangeMenuClick
 import com.example.eatitserver.eventbus.ToastEvent
+import com.google.android.material.navigation.NavigationView
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.messaging.FirebaseMessaging
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
@@ -39,6 +40,7 @@ class HomeActivity : AppCompatActivity() {
         val toolbar: Toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)
 
+        subscribeToTopic(Common.getNewOrderTopic())
 
         drawerLayout = findViewById(R.id.drawer_layout)
         navView = findViewById(R.id.nav_view)
@@ -47,7 +49,7 @@ class HomeActivity : AppCompatActivity() {
         // menu should be considered as top level destinations.
         appBarConfiguration = AppBarConfiguration(
             setOf(
-                R.id.nav_category, R.id.nav_foodlist, R.id.nav_sign_out
+                R.id.nav_category, R.id.nav_foodlist, R.id.nav_sign_out, R.id.nav_order
             ), drawerLayout
         )
         setupActionBarWithNavController(navController, appBarConfiguration)
@@ -62,7 +64,13 @@ class HomeActivity : AppCompatActivity() {
                     signOut()
                 } else if (p0.itemId == R.id.nav_category) {
                     if (menuClick != p0.itemId) {
+                        navController.popBackStack()
                         navController.navigate(R.id.nav_category)
+                    }
+                } else if (p0.itemId == R.id.nav_order) {
+                    if (menuClick != p0.itemId) {
+                        navController.popBackStack()
+                        navController.navigate(R.id.nav_order)
                     }
                 }
                 menuClick=p0!!.itemId
@@ -70,6 +78,28 @@ class HomeActivity : AppCompatActivity() {
             }
 
         })
+
+        val headerView = navView.getHeaderView(0)
+        val txt_user = headerView.findViewById<View>(R.id.txt_user) as TextView
+        Common.setSpanString("Hey ", Common.currenServerUser!!.name, txt_user)
+        menuClick = R.id.nav_category
+    }
+
+    private fun subscribeToTopic(newOrderTopic: String) {
+        FirebaseMessaging.getInstance()
+            .subscribeToTopic(newOrderTopic)
+            .addOnFailureListener { message ->
+                Toast.makeText(
+                    this@HomeActivity,
+                    "" + message.message,
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            .addOnCompleteListener { task ->
+                if (!task.isSuccessful)
+                    Toast.makeText(this@HomeActivity, "Subscribe topic failed", Toast.LENGTH_SHORT)
+                        .show()
+            }
     }
 
     private fun signOut() {
@@ -93,8 +123,6 @@ class HomeActivity : AppCompatActivity() {
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        menuInflater.inflate(R.menu.home, menu)
         return true
     }
 

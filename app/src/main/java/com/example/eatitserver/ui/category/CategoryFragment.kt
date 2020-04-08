@@ -4,11 +4,9 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
-import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
-import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -30,14 +28,12 @@ import com.example.eatitserver.callback.IMyButtonCallback
 import com.example.eatitserver.common.Common
 import com.example.eatitserver.common.MySwipeHelper
 import com.example.eatitserver.eventbus.MenuItemback
-import com.example.eatitserver.eventbus.ToastEvent
 import com.example.eatitserver.model.CategoryModel
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
 import dmax.dialog.SpotsDialog
 import org.greenrobot.eventbus.EventBus
-import java.io.InputStream
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
@@ -84,7 +80,6 @@ class CategoryFragment : Fragment() {
     }
 
     private fun initViews(root: View) {
-
         storage= FirebaseStorage.getInstance()
         storageReference= storage.reference
         dialog = SpotsDialog.Builder().setContext(context).setCancelable(false).build()
@@ -118,7 +113,6 @@ class CategoryFragment : Fragment() {
                         })
                 )
             }
-
         }
     }
 

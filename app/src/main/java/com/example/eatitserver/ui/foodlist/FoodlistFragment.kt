@@ -2,19 +2,19 @@ package com.example.eatitserver.ui.foodlist
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.SearchManager
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.text.TextUtils
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.util.DisplayMetrics
+import android.view.*
 import android.view.animation.AnimationUtils
 import android.view.animation.LayoutAnimationController
 import android.widget.EditText
 import android.widget.ImageView
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -25,12 +25,13 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.eatitserver.R
+import com.example.eatitserver.SizeAddonActivity
 import com.example.eatitserver.adapter.MyFoodListAdapter
 import com.example.eatitserver.callback.IMyButtonCallback
 import com.example.eatitserver.common.Common
 import com.example.eatitserver.common.MySwipeHelper
+import com.example.eatitserver.eventbus.AddoSizeEditEvent
 import com.example.eatitserver.eventbus.ChangeMenuClick
-import com.example.eatitserver.eventbus.MenuItemback
 import com.example.eatitserver.eventbus.ToastEvent
 import com.example.eatitserver.model.FoodModel
 import com.google.firebase.database.FirebaseDatabase
@@ -79,7 +80,54 @@ class FoodlistFragment : Fragment() {
         return root
     }
 
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        inflater.inflate(R.menu.food_list_menu, menu)
+        val menuItem = menu.findItem(R.id.action_search)
+        val searchManager = activity!!.getSystemService(Context.SEARCH_SERVICE) as SearchManager
+        val searchView = menuItem.actionView as androidx.appcompat.widget.SearchView
+
+        searchView.setSearchableInfo(searchManager.getSearchableInfo(activity!!.componentName))
+
+        searchView.setOnQueryTextListener(object :
+            androidx.appcompat.widget.SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(search: String?): Boolean {
+                startSearchFood(search)
+                return true
+            }
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                return false
+            }
+
+        })
+        val closeButton = searchView.findViewById<View>(R.id.search_close_btn) as ImageView
+        closeButton.setOnClickListener {
+            val ed = searchView.findViewById<View>(R.id.search_src_text) as EditText
+            ed.setText("")
+            searchView.setQuery("", false)
+            searchView.onActionViewCollapsed()
+            menuItem.collapseActionView()
+            foodlistViewModel.getMutableFoodModelList().value = Common.categorySelected!!.foods
+        }
+
+    }
+
+    private fun startSearchFood(search: String?) {
+        val resultFood: MutableList<FoodModel> = ArrayList()
+        for (i in Common.categorySelected!!.foods!!.indices) {
+            val foodModel = Common.categorySelected!!.foods!![i]
+            if (foodModel.name!!.toLowerCase().contains(search.toString())) {
+                foodModel.positioInList = i
+                resultFood.add(foodModel)
+            }
+        }
+
+        foodlistViewModel!!.getMutableFoodModelList().value = resultFood
+    }
+
     private fun initView(root: View?) {
+
+        setHasOptionsMenu(true)
         storage= FirebaseStorage.getInstance()
         storageReference= storage.reference
         dialog = SpotsDialog.Builder().setContext(context).setCancelable(false).build()
@@ -92,7 +140,11 @@ class FoodlistFragment : Fragment() {
 
         (activity as AppCompatActivity).supportActionBar!!.title = Common.categorySelected!!.name
 
-        var swipe = object : MySwipeHelper(context!!, recycler_food!!, 300) {
+        val displayMetrics = DisplayMetrics()
+        activity!!.windowManager.defaultDisplay.getMetrics(displayMetrics)
+        val width = displayMetrics.widthPixels
+
+        var swipe = object : MySwipeHelper(context!!, recycler_food!!, width / 6) {
             override fun instaniateMyButton(
                 viewHolder: RecyclerView.ViewHolder,
                 buffer: MutableList<MyButton>
@@ -112,7 +164,11 @@ class FoodlistFragment : Fragment() {
                                     .setMessage("Dp you really want to delete food?")
                                     .setNegativeButton("CANCEL", { dialogInterface, _ -> dialogInterface.dismiss() })
                                     .setPositiveButton("OK"){dialogInterface, i ->
-                                        Common.categorySelected!!.foods!!.removeAt(pos)
+                                        val foodModel = adapter!!.getItemAtPosition(pos)
+                                        if (foodModel.positioInList == -1) {
+                                            Common.categorySelected!!.foods!!.removeAt(pos)
+                                        } else
+                                            Common.categorySelected!!.foods!!.removeAt(foodModel.positioInList)
                                         updateFood(Common.categorySelected!!.foods!!,true)
                                     }
                                 val deleteDialog= buider.create()
@@ -131,7 +187,74 @@ class FoodlistFragment : Fragment() {
                         Color.parseColor("#560027"),
                         object : IMyButtonCallback {
                             override fun onClick(pos: Int) {
-                                showUpdateDialog(pos)
+                                val foodModel = adapter!!.getItemAtPosition(pos)
+                                if (foodModel.positioInList == -1) {
+                                    showUpdateDialog(pos, foodModel)
+                                } else {
+                                    showUpdateDialog(foodModel.positioInList, foodModel)
+                                }
+                            }
+
+                        })
+                )
+
+                buffer.add(
+                    MyButton(
+                        context!!,
+                        "Size",
+                        30,
+                        0,
+                        Color.parseColor("#12005e"),
+                        object : IMyButtonCallback {
+                            override fun onClick(pos: Int) {
+                                val foodModel = adapter!!.getItemAtPosition(pos)
+                                if (foodModel.positioInList == -1) {
+                                    Common.foodSelected = foodModelList[pos]
+                                } else {
+                                    Common.foodSelected = foodModel
+                                }
+                                startActivity(Intent(context, SizeAddonActivity::class.java))
+                                if (foodModel.positioInList == -1) {
+                                    EventBus.getDefault().postSticky(AddoSizeEditEvent(false, pos))
+                                } else {
+                                    EventBus.getDefault().postSticky(
+                                        AddoSizeEditEvent(
+                                            false,
+                                            foodModel.positioInList
+                                        )
+                                    )
+                                }
+                            }
+
+                        })
+                )
+
+                buffer.add(
+                    MyButton(
+                        context!!,
+                        "Addon",
+                        30,
+                        0,
+                        Color.parseColor("#333639"),
+                        object : IMyButtonCallback {
+                            override fun onClick(pos: Int) {
+                                val foodModel = adapter!!.getItemAtPosition(pos)
+                                if (foodModel.positioInList == -1) {
+                                    Common.foodSelected = foodModelList[pos]
+                                } else {
+                                    Common.foodSelected = foodModel
+                                }
+                                startActivity(Intent(context, SizeAddonActivity::class.java))
+                                if (foodModel.positioInList == -1) {
+                                    EventBus.getDefault().postSticky(AddoSizeEditEvent(true, pos))
+                                } else {
+                                    EventBus.getDefault().postSticky(
+                                        AddoSizeEditEvent(
+                                            true,
+                                            foodModel.positioInList
+                                        )
+                                    )
+                                }
                             }
 
                         })
@@ -141,7 +264,7 @@ class FoodlistFragment : Fragment() {
         }
     }
 
-    private fun showUpdateDialog(pos: Int) {
+    private fun showUpdateDialog(pos: Int, foodModel: FoodModel) {
         var builder = androidx.appcompat.app.AlertDialog.Builder(context!!)
         builder.setTitle("Update Category")
         builder.setMessage("Please fill information")
@@ -152,11 +275,11 @@ class FoodlistFragment : Fragment() {
         val edt_food_description= itemvView.findViewById<View>(R.id.edt_food_description) as EditText
         img_food= itemvView.findViewById<View>(R.id.img_food) as ImageView
 
-        edt_food_name.setText(Common.categorySelected!!.foods!![pos]!!.name)
-        edt_food_price.setText(Common.categorySelected!!.foods!![pos]!!.price.toString())
-        edt_food_description.setText(Common.categorySelected!!.foods!![pos]!!.description)
+        edt_food_name.setText(foodModel.name)
+        edt_food_price.setText(foodModel.price.toString())
+        edt_food_description.setText(foodModel.description)
 
-        Glide.with(context!!).load(Common.categorySelected!!.foods!![pos]!!.image).into(img_food)
+        Glide.with(context!!).load(foodModel.image).into(img_food)
 
         img_food.setOnClickListener{
             val intent= Intent()
@@ -167,7 +290,7 @@ class FoodlistFragment : Fragment() {
 
         builder.setNegativeButton("CANCEL"){dialogInterface, _ -> dialog.dismiss() }
         builder.setPositiveButton("OK"){dialogInterface, i ->
-            val updateFood= Common.categorySelected!!.foods!![pos]
+            val updateFood = foodModel
             updateFood.name= edt_food_name.text.toString()
             updateFood.price= if( TextUtils.isEmpty(edt_food_price.text))
                 0
@@ -241,4 +364,6 @@ class FoodlistFragment : Fragment() {
             }
         }
     }
+
+
 }
